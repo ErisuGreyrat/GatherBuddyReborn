@@ -1,1 +1,6 @@
-Nothing should be ignored since only a single C# source file was added without any build artifacts, dependencies, or temporary files.
+bin/
+obj/
+.vs/
+.idea/
+SecretKeys.generated.cs
+.vscode/
