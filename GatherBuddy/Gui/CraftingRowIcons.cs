@@ -51,11 +51,9 @@ internal static class CraftingRowIcons
 
         var icons = new List<RowIcon>();
 
-        // 1. Gather class icon (Miner / Botanist / Fisher)
         if (TryGetGatherClassJobId(itemId, out var classJobId))
             icons.Add(new RowIcon(GetClassJobIconId(classJobId), GetClassJobName(classJobId)));
 
-        // 2. Currency icon
         if (TryResolveCurrencyItemId(itemId, out var currencyItemId))
         {
             var currencyIcon = GetCurrencyIconId(currencyItemId);
@@ -63,7 +61,6 @@ internal static class CraftingRowIcons
                 icons.Add(new RowIcon(currencyIcon, GetCurrencyName(currencyItemId)));
         }
 
-        // 3. Crafter class icon (only on precraft material rows)
         if (isPrecraft && TryGetCrafterClassJobIdForItem(itemId, out var crafterClassJobId))
             icons.Add(new RowIcon(GetClassJobIconId(crafterClassJobId), GetClassJobName(crafterClassJobId)));
 
@@ -84,7 +81,7 @@ internal static class CraftingRowIcons
         return icon;
     }
 
-    public static void DrawIconsRightAligned(IReadOnlyList<RowIcon> icons, float iconSize = -1f, float spacing = -1f)
+    public static void DrawIconsRightAligned(IReadOnlyList<RowIcon> icons, float iconSize = -1f, float spacing = -1f, uint itemId = 0)
     {
         if (icons.Count == 0)
             return;
@@ -98,6 +95,9 @@ internal static class CraftingRowIcons
         {
             if (i > 0)
                 ImGui.SameLine(0, spacing);
+            if (itemId != 0
+                && GatherSourcePopup.TryDrawGatherIconButton(itemId, icons[i].IconId, icons[i].Tooltip, iconSize, false, spacing))
+                continue;
             DrawIcon(icons[i], size);
         }
     }
@@ -162,7 +162,6 @@ internal static class CraftingRowIcons
     private static bool TryResolveCurrencyItemId(uint itemId, out uint currencyItemId)
     {
         VendorShopResolver.InitializeAsync();
-        // Cheapest matching SpecialShop entry (covers tomestones, scrips, bicolor, hunt seals, MGP, wolf marks, etc.)
         currencyItemId = 0;
         var bestCost = uint.MaxValue;
         foreach (var entry in VendorShopResolver.SpecialShopEntries)
@@ -178,7 +177,6 @@ internal static class CraftingRowIcons
         if (currencyItemId != 0)
             return true;
 
-        // Grand Company seal exchange
         foreach (var entry in VendorShopResolver.GcShopEntries)
         {
             if (entry.ItemId == itemId && entry.CurrencyItemId != 0)
@@ -188,7 +186,6 @@ internal static class CraftingRowIcons
             }
         }
 
-        // Gil shop fallback
         foreach (var entry in VendorShopResolver.GilShopEntries)
         {
             if (entry.ItemId == itemId)
