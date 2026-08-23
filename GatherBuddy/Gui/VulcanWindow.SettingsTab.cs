@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
@@ -119,6 +119,36 @@ public partial class VulcanWindow
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Show the native item tooltip when hovering recipe results in the Recipes tab.");
 
+            ImGui.Separator();
+            ImGui.TextUnformatted("Private fork extras");
+            var gcOverlay = GatherBuddy.Config.EnableGcSupplyOverlay;
+            if (ImGui.Checkbox("GC Supply → Vulcan list overlay", ref gcOverlay))
+            {
+                GatherBuddy.Config.EnableGcSupplyOverlay = gcOverlay;
+                GatherBuddy.Config.Save();
+                GatherBuddy.GcSupplyOverlay?.SetEnabled(gcOverlay);
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("When the Grand Company supply list is open, show a button to create a normal Vulcan crafting list from craftable commitments.");
+
+            var preferRoute = GatherBuddy.Config.MaterialsPreferRouteTab;
+            if (ImGui.Checkbox("Materials: prefer Route tab by default", ref preferRoute))
+            {
+                GatherBuddy.Config.MaterialsPreferRouteTab = preferRoute;
+                GatherBuddy.Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Open the Materials window on the optimized Route tab instead of Classic.");
+
+            var hideCovered = GatherBuddy.Config.MaterialsRouteHideFullyCovered;
+            if (ImGui.Checkbox("Route: hide fully covered rows by default", ref hideCovered))
+            {
+                GatherBuddy.Config.MaterialsRouteHideFullyCovered = hideCovered;
+                GatherBuddy.Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("In the Materials Route tab, omit items fully covered by inventory + retainer.");
+
             if (Widget.ModifiableKeySelector("Hotkey to Open Recipes Tab",
                     "Set a hotkey to open Vulcan directly to the Recipes tab.",
                     VulcanUiScaling.Scaled(220f),
@@ -130,9 +160,7 @@ public partial class VulcanWindow
             }
 
             DrawVulcanRepairConfig();
-
             DrawVulcanMateriaConfig();
-
             DrawVulcanRetainerBellConfig();
 
             ImGui.Spacing();
