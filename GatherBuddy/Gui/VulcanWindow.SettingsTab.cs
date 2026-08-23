@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
@@ -160,7 +160,9 @@ public partial class VulcanWindow
             }
 
             DrawVulcanRepairConfig();
+
             DrawVulcanMateriaConfig();
+
             DrawVulcanRetainerBellConfig();
 
             ImGui.Spacing();

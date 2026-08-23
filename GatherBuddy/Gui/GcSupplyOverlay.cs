@@ -104,6 +104,7 @@ public sealed class GcSupplyOverlay : IDisposable
             var posX = unit->X;
             var posY = unit->Y;
             var width = unit->GetScaledWidth(true);
+            // Draw a thin bar just above the addon.
             ImGui.SetNextWindowPos(new Vector2(posX, Math.Max(0, posY - 36f)), ImGuiCond.Always);
             ImGui.SetNextWindowSize(new Vector2(Math.Max(280f, width), 0), ImGuiCond.Always);
         }
@@ -171,6 +172,7 @@ public sealed class GcSupplyOverlay : IDisposable
             }
 
             var name = $"GC Supply {DateTime.Now:yyyy-MM-dd HH:mm}";
+            // Ensure unique name.
             var baseName = name;
             var suffix = 1;
             while (!manager.IsNameUnique(name))
@@ -199,12 +201,14 @@ public sealed class GcSupplyOverlay : IDisposable
             manager.SaveList(list);
             SetStatus($"Created list \"{list.Name}\" with {added} recipe(s).", true);
 
+            // Open the list in Vulcan if possible.
             try
             {
                 GatherBuddy.VulcanWindow?.OpenCraftingListFromExternal(list);
             }
             catch
             {
+                // Soft fail — list is saved; user can open it manually.
             }
         }
         catch (Exception ex)
@@ -213,6 +217,11 @@ public sealed class GcSupplyOverlay : IDisposable
         }
     }
 
+    /// <summary>
+    /// Reads craftable item commitments from the GC supply list addon.
+    /// Falls back to scanning the GrandCompanySupplyDuty Excel sheet filtered by
+    /// currently visible row names when addon node parsing is unreliable.
+    /// </summary>
     private unsafe List<(uint RecipeId, int Quantity)> ReadSupplyCommitments()
     {
         var results = new List<(uint RecipeId, int Quantity)>();
@@ -229,6 +238,7 @@ public sealed class GcSupplyOverlay : IDisposable
         if (itemSheet == null || recipeSheet == null)
             return results;
 
+        // item result id → first recipe id
         var itemToRecipe = new Dictionary<uint, uint>();
         foreach (var recipe in recipeSheet)
         {
@@ -241,6 +251,7 @@ public sealed class GcSupplyOverlay : IDisposable
 
         var foundItemIds = new HashSet<uint>();
 
+        // Prefer AtkValues: many GC supply builds expose item IDs as UInt values.
         try
         {
             var valueCount = unit->AtkValuesCount;
@@ -309,14 +320,18 @@ public sealed class GcSupplyOverlay : IDisposable
         if (node == null)
             return;
 
+        // Icon nodes sometimes store icon ID that maps to item icon; item ID resolution via icon is weak.
+        // Prefer component list item data when present.
         if (node->Type == NodeType.Component)
         {
             var component = ((AtkComponentNode*)node)->Component;
             if (component != null)
             {
+                // Some list item components expose AtkValues; skip deep reflection for stability.
             }
         }
 
+        // Recurse children.
         if ((int)node->ChildCount > 0 && node->ChildNode != null)
         {
             var child = node->ChildNode;

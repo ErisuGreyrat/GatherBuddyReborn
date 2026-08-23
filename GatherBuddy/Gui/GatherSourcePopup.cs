@@ -81,6 +81,7 @@ internal static class GatherSourcePopup
 
     private static bool IsGatherSourceIcon(uint itemId, uint iconId)
     {
+        // Miner / Botanist / Fisher class job icons, or gatherable/fish items with those sources.
         if (GatherBuddy.GameData.Gatherables.ContainsKey(itemId))
             return true;
         if (GatherBuddy.GameData.Fishes.ContainsKey(itemId))
@@ -101,6 +102,7 @@ internal static class GatherSourcePopup
                         list.Add(loc);
                 }
 
+                // Prefer best location first if available.
                 try
                 {
                     var (best, _) = GatherBuddy.UptimeManager.BestLocation(gatherable);
@@ -110,7 +112,10 @@ internal static class GatherSourcePopup
                         list.Insert(0, best);
                     }
                 }
-                catch { }
+                catch
+                {
+                    // ignore
+                }
             }
             else if (GatherBuddy.GameData.Fishes.TryGetValue(itemId, out var fish))
             {
@@ -129,7 +134,10 @@ internal static class GatherSourcePopup
                         list.Insert(0, best);
                     }
                 }
-                catch { }
+                catch
+                {
+                    // ignore
+                }
             }
         }
         catch (Exception ex)
@@ -137,6 +145,7 @@ internal static class GatherSourcePopup
             GatherBuddy.Log.Debug($"[GatherSourcePopup] ResolveLocations failed for {itemId}: {ex.Message}");
         }
 
+        // Distinct by territory + name.
         return list
             .GroupBy(l => (l.Territory.Id, l.Name))
             .Select(g => g.First())
@@ -169,6 +178,7 @@ internal static class GatherSourcePopup
             var primary = zg.FirstOrDefault(l => l.ClosestAetheryte != null) ?? zg.First();
             var open = ZoneOpenStates[stateId];
 
+            // Zone header row with flag + TP before the collapsible header hitbox.
             DrawIconButton($"flag_z_{zi}", FontAwesomeIcon.MapMarkerAlt, MarkerButtonColor,
                 "Place map marker for this zone.",
                 () => PlaceFlag(primary));

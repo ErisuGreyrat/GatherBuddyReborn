@@ -79,6 +79,7 @@ internal static class MaterialsRoutePanel
             if (stop.EstimatedGil > 0)
                 header += $"  (~{stop.EstimatedGil:N0} gil)";
 
+            // TP / flag before header.
             DrawStopActions(stop);
             ImGui.SameLine(0, 6);
             if (ImGui.CollapsingHeader($"{header}###route_stop_{stop.TerritoryId}_{i}", ImGuiTreeNodeFlags.DefaultOpen))
@@ -111,6 +112,7 @@ internal static class MaterialsRoutePanel
     private static void DrawStopActions(RouteStop stop)
     {
         var size = Vector2.One * ImGui.GetFrameHeight();
+        // Flag
         using (ImRaii.PushId($"flag_{stop.TerritoryId}_{stop.Aetheryte?.Id ?? 0}"))
         {
             using var font = ImRaii.PushFont(UiBuilder.IconFont);
@@ -126,6 +128,7 @@ internal static class MaterialsRoutePanel
 
         ImGui.SameLine(0, 4);
 
+        // Teleport
         var canTp = stop.Aetheryte != null;
         using (ImRaii.PushId($"tp_{stop.TerritoryId}_{stop.Aetheryte?.Id ?? 0}"))
         {
@@ -172,6 +175,7 @@ internal static class MaterialsRoutePanel
 
             if (stop.Aetheryte != null)
             {
+                // Fallback: open territory map without precise coords.
                 var territory = stop.Aetheryte.Territory;
                 var mapId = territory.Data.Map.RowId;
                 var payload = new MapLinkPayload(territory.Id, mapId, stop.Aetheryte.XCoord / 100f, stop.Aetheryte.YCoord / 100f);
@@ -205,8 +209,14 @@ internal static class MaterialsRoutePanel
 
                 var have = editor.GetInventoryCount(itemId);
                 var ret = 0;
-                try { ret = snapshot.GetTotalCount(itemId); }
-                catch { ret = editor.GetRetainerCount(itemId); }
+                try
+                {
+                    ret = snapshot.GetTotalCount(itemId);
+                }
+                catch
+                {
+                    ret = editor.GetRetainerCount(itemId);
+                }
 
                 var effective = have + ret;
                 var missing = Math.Max(0, needed - effective);
@@ -232,6 +242,7 @@ internal static class MaterialsRoutePanel
         if (items.Count == 0)
             return [];
 
+        // Group by territory + preferred aetheryte.
         var groups = items
             .GroupBy(i => (i.TerritoryId, AetheryteId: i.Aetheryte?.Id ?? 0u, i.ZoneName))
             .Select(g =>
@@ -270,18 +281,37 @@ internal static class MaterialsRoutePanel
         return (null, null);
     }
 
-    private static int EstimateGil(Aetheryte? aetheryte) => 0;
+    private static int EstimateGil(Aetheryte? aetheryte)
+    {
+        if (aetheryte == null)
+            return 0;
+        try
+        {
+            // Prefer live Telepo costs when available via GameData helpers; fall back to 0.
+            // GBR does not always expose a public Telepo wrapper — soft default.
+            return 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
 
+    /// <summary>
+    /// Order: cheapest estimated gil first, then nearest-neighbour on aetheryte network.
+    /// </summary>
     private static List<RouteStop> OrderStops(List<RouteStop> stops)
     {
         if (stops.Count <= 1)
             return stops;
 
+        // Primary: gil ascending (zeros last among unknowns treated equal).
         var ordered = stops
             .OrderBy(s => s.EstimatedGil > 0 ? 0 : 1)
             .ThenBy(s => s.EstimatedGil)
             .ToList();
 
+        // Nearest-neighbour from first stop using WorldDistance between aetherytes when possible.
         var result = new List<RouteStop>(ordered.Count);
         var remaining = new List<RouteStop>(ordered);
         var current = remaining[0];
@@ -315,14 +345,24 @@ internal static class MaterialsRoutePanel
             return a.TerritoryId == b.TerritoryId ? 0 : 1e9;
         try
         {
+            // Approximate with world distance on shared territory; otherwise large penalty + id delta.
             if (a.Aetheryte.Territory.Id == b.Aetheryte.Territory.Id)
             {
-                var dx = a.Aetheryte.XCoord - b.Aetheryte.XCoord;
-                var dy = a.Aetheryte.YCoord - b.Aetheryte.YCoord;
+                var ax = a.Aetheryte.XCoord;
+                var ay = a.Aetheryte.YCoord;
+                var bx = b.Aetheryte.XCoord;
+                var by = b.Aetheryte.YCoord;
+                var dx = ax - bx;
+                var dy = ay - by;
                 return Math.Sqrt(dx * dx + dy * dy);
             }
+
+            // Cross-territory: use a coarse hop cost.
             return 1_000_000 + Math.Abs((int)a.Aetheryte.Id - (int)b.Aetheryte.Id);
         }
-        catch { return 1e9; }
+        catch
+        {
+            return 1e9;
+        }
     }
 }

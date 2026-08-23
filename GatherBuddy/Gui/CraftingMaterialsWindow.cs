@@ -24,6 +24,8 @@ public class CraftingMaterialsWindow : Window
     private static float GetRemainingLineWidth()
         => Math.Max(0f, ImGui.GetWindowPos().X + ImGui.GetContentRegionMax().X - ImGui.GetItemRectMax().X);
     private CraftingListEditor? _editor;
+    private int _materialsViewTab; // 0 = Classic, 1 = Route
+    private bool _materialsRoutePrefApplied;
     private bool _matsOvercapPercent;
     private bool _matsShowPrecrafts;
     private bool _matsPreferVendors;
@@ -102,7 +104,10 @@ public class CraftingMaterialsWindow : Window
     public void SetEditor(CraftingListEditor? editor)
     {
         if (!ReferenceEquals(_editor, editor))
+        {
             InvalidateMaterialView();
+            _materialsRoutePrefApplied = false;
+        }
         _editor = editor;
     }
 
@@ -157,6 +162,35 @@ public class CraftingMaterialsWindow : Window
         if (!_cachedHasMaterials)
         {
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "No materials needed.");
+            return;
+        }
+
+        // Classic Materials vs Optimized Route (additive; classic remains default home).
+        if (!_materialsRoutePrefApplied)
+        {
+            _materialsRoutePrefApplied = true;
+            if (GatherBuddy.Config.MaterialsPreferRouteTab)
+                _materialsViewTab = 1;
+        }
+
+        if (ImGui.BeginTabBar("##MaterialsViewTabs"))
+        {
+            if (ImGui.BeginTabItem("Classic"))
+            {
+                _materialsViewTab = 0;
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem("Route"))
+            {
+                _materialsViewTab = 1;
+                ImGui.EndTabItem();
+            }
+            ImGui.EndTabBar();
+        }
+
+        if (_materialsViewTab == 1)
+        {
+            MaterialsRoutePanel.Draw(_editor);
             return;
         }
 
@@ -672,7 +706,7 @@ public class CraftingMaterialsWindow : Window
             var hasDrawnIcon = false;
             if (sourceIcons.Count > 0)
             {
-                CraftingRowIcons.DrawIconsRightAligned(sourceIcons, lineH, MaterialRowIconSpacing);
+                CraftingRowIcons.DrawIconsRightAligned(sourceIcons, lineH, MaterialRowIconSpacing, entry.ItemId);
                 hasDrawnIcon = true;
             }
             if (entry.CurrencyOptions.Count > 0)

@@ -189,6 +189,10 @@ public partial class VulcanWindow : Window, IDisposable
         _deferEditorDraw = true;
     }
 
+    /// <summary>Open a crafting list from external UI (e.g. GC supply overlay).</summary>
+    internal void OpenCraftingListFromExternal(CraftingListDefinition list)
+        => OpenCraftingList(list);
+
     internal void RefreshOpenCraftingList(int listId)
     {
         if (_editingList?.ID != listId || _listEditor == null)
