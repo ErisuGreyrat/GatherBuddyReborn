@@ -83,6 +83,13 @@ public partial class Configuration : IPluginConfiguration
     public int VulcanExecutionDelayMs { get; set; } = 300;
     public bool VulcanContextMenuEntries { get; set; } = true;
     public bool ShowRecipeBrowserTooltips { get; set; } = true;
+
+    // Private-fork: GC supply → Vulcan list overlay
+    public bool EnableGcSupplyOverlay { get; set; } = true;
+    // Materials optimized route view defaults
+    public bool MaterialsPreferRouteTab { get; set; } = false;
+    public bool MaterialsRouteHideFullyCovered { get; set; } = true;
+
     public ModifiableHotkey VulcanRecipesTabHotkey { get; set; } = new();
     public string CraftingLists { get; set; } = string.Empty;
     public List<string> CraftingFolders { get; set; } = [];
