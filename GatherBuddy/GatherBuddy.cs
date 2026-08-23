@@ -79,6 +79,7 @@ public partial class GatherBuddy : IDalamudPlugin
     public static Gui.CraftingStatusWindow? CraftingStatusWindow { get; private set; }
     public static Gui.VulcanWindow? VulcanWindow { get; private set; }
     public static Gui.CraftingMaterialsWindow? CraftingMaterialsWindow { get; private set; }
+    public static Gui.GcSupplyOverlay? GcSupplyOverlay { get; private set; }
     public static Gui.CraftingTreeWindow? CraftingTreeWindow { get; private set; }
     public static Gui.VendorBuyListWindow? VendorBuyListWindow { get; private set; }
     public static Gui.CollectablesWindow? CollectablesWindow { get; private set; }
@@ -102,12 +103,12 @@ public partial class GatherBuddy : IDalamudPlugin
     internal VulcanWindow?                           _vulcanWindow;
     internal Gui.CraftingStatusWindow?               _craftingStatusWindow;
     internal Gui.CraftingMaterialsWindow?            _craftingMaterialsWindow;
+    internal Gui.GcSupplyOverlay?                    _gcSupplyOverlay;
     internal Gui.CraftingTreeWindow?                 _craftingTreeWindow;
     internal Gui.VendorBuyListWindow?                _vendorBuyListWindow;
     internal Gui.CollectablesWindow?                 _collectablesWindow;
 
     internal readonly GatherBuddyIpc Ipc;
-    //    internal readonly WotsitIpc Wotsit;
 
     public GatherBuddy(IDalamudPluginInterface pluginInterface)
     {
@@ -183,6 +184,10 @@ public partial class GatherBuddy : IDalamudPlugin
             CraftingStatusWindow = _craftingStatusWindow;
             _craftingMaterialsWindow = new Gui.CraftingMaterialsWindow();
             CraftingMaterialsWindow = _craftingMaterialsWindow;
+            _gcSupplyOverlay = new Gui.GcSupplyOverlay();
+            GcSupplyOverlay = _gcSupplyOverlay;
+            if (Config.EnableGcSupplyOverlay)
+                _gcSupplyOverlay.Enable();
             _craftingTreeWindow = new Gui.CraftingTreeWindow();
             CraftingTreeWindow = _craftingTreeWindow;
             _vendorBuyListWindow = new Gui.VendorBuyListWindow();
@@ -214,14 +219,10 @@ public partial class GatherBuddy : IDalamudPlugin
                     Dalamud.Log
                 );
                 ControllerSupport.EnableInputBlocking();
-                
-                // Register both windows as managed by ElliCon
                 ControllerSupport.RegisterBlockingWindow("Vulcan - Crafting###VulcanWindow");
                 ControllerSupport.RegisterBlockingWindow("Crafting Status###GatherBuddyCraftingStatus");
                 ControllerSupport.RegisterBlockingWindow(Gui.VendorBuyListWindow.WindowId);
                 ControllerSupport.RegisterBlockingWindow(Gui.CollectablesWindow.WindowId);
-                
-                // Start in normal mode (blocks everything when windows are focused)
                 ControllerSupport.SetBlockingMode(true, true, true);
             }
             catch (Exception e)
@@ -231,7 +232,6 @@ public partial class GatherBuddy : IDalamudPlugin
 
             Ipc = new GatherBuddyIpc(this);
             CheckForOGGB();
-            //Wotsit = new WotsitIpc();
         }
         catch
         {
@@ -246,6 +246,7 @@ public partial class GatherBuddy : IDalamudPlugin
         try
         {
             WindowSystem.Draw();
+            _gcSupplyOverlay?.Draw();
         }
         finally
         {
@@ -276,26 +277,21 @@ public partial class GatherBuddy : IDalamudPlugin
         Config.SaveIfDirty();
         var prev = LastObjectsLength;
         LastObjectsLength = Dalamud.Objects.Length;
-        //Scan objects every 5 secons or when the number of objects change
         if (prev != LastObjectsLength || (DateTime.Now - LastObjectsScan).TotalSeconds >= 5)
         {
             LastObjectsScan = DateTime.Now;
 
             foreach (var obj in Dalamud.Objects)
             {
-                // Add gathering node locations
                 if (obj.ObjectKind == ObjectKind.GatheringPoint)
                 {
                     WorldData.AddLocation(obj.BaseId, obj.Position);
                 }
-                // Detect other players gathering and add their positions as offsets
                 else if (obj is IPlayerCharacter player)
                 {
                     var character = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)player.Address;
                     if (character == null) continue;
 
-                    // Only add offsets if player is gathering and is not flying
-                    // (I've seen glitches where the flying character would gather, let's exclude those)
                     if (character->Mode == FFXIVClientStructs.FFXIV.Client.Game.Character.CharacterModes.Gathering
                         && character->MovementState != FFXIVClientStructs.FFXIV.Client.Game.Character.MovementStateOptions.Flying)
                     {
@@ -358,8 +354,10 @@ public partial class GatherBuddy : IDalamudPlugin
         Ipc?.Dispose();
         NativeItemTooltipBridge?.Dispose();
         NativeItemTooltipBridge = null;
-        //Wotsit?.Dispose();
         Interface?.Dispose();
+        _gcSupplyOverlay?.Dispose();
+        _gcSupplyOverlay = null;
+        GcSupplyOverlay = null;
         WindowSystem?.RemoveAllWindows();
         DisposeCommands();
         Time?.Dispose();
@@ -367,7 +365,6 @@ public partial class GatherBuddy : IDalamudPlugin
         Plugin.EzIPC.Dispose();
     }
 
-    // Collect all relevant files for GatherBuddy configuration
     private static IReadOnlyList<FileInfo> GatherBuddyBackupFiles()
     {
         var list = Directory.Exists(Dalamud.PluginInterface.GetPluginConfigDirectory())
